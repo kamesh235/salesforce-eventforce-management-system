@@ -1,0 +1,33 @@
+trigger PreventDoubleBooking on Event__c (before insert, before update) {
+    Set<Id> venueIds = new Set<Id>();
+    Set<Date> eventDates = new Set<Date>();
+
+    for (Event__c ev : Trigger.new) {
+        if (ev.Venue_c != null && ev.Event_Date_c != null) {
+            venueIds.add(ev.Venue__c);
+            eventDates.add(ev.Event_Date__c);
+        }
+    }
+
+    if (venueIds.isEmpty() || eventDates.isEmpty()) {
+        return;
+    }
+
+    List<Event__c> existingEvents = [
+        SELECT Id, Venue_c, Event_Date_c
+        FROM Event__c
+        WHERE Venue__c IN :venueIds
+        AND Event_Date__c IN :eventDates
+    ];
+
+    for (Event__c ev : Trigger.new) {
+        for (Event__c existing : existingEvents) {
+            if (existing.Venue_c == ev.Venue_c &&
+                existing.Event_Date_c == ev.Event_Date_c &&
+                existing.Id != ev.Id) {
+
+                ev.addError('This Venue is already booked on this date.');
+            }
+        }
+    }
+}
